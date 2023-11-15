@@ -1,0 +1,308 @@
+---
+title: "A Comprehensive Analysis of Predictor Variables"
+author: "Yamuna Dhungana"
+output: 
+    pdf_document:
+     latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE, warning=F, message=F) #tinytex::reinstall_tinytex()
+
+```
+
+Building a multiple regression model to forecast Sales by considering Price, Urban, and US variables within the carseat dataset.
+```{r,echo=FALSE}
+# Loading carseats data
+library(ISLR)
+data("Carseats")
+# View(carseats)
+Fit <- lm(Sales~Price + Urban + US, data = Carseats)
+summary(Fit)
+
+
+# Plotting the fitted data
+layout(matrix(c(1,2,3,4),2,2))
+plot(Fit,pch=16,col=3,cex=0.8)
+
+```
+
+The analysis summary reveals a negative association between price and sales, indicating that as sales increase by one unit (in thousand), the price decreases by 0.054459. Additionally, the store's location influences sales, with a positive effect observed. The estimated coefficient for the price variable is -0.054459, suggesting a decrease in price with a unit increase in sales. The coefficient for the urbanYes variable is -0.021916, indicating that mean sales in urban areas are 0.021916 lower than in rural areas. Conversely, the US location has a positive effect, with a coefficient of 1.200573, signifying that mean sales in the US are 1.200573 higher than those outside the US.
+
+Analyzing the P-values, the urban variable is deemed statistically insignificant as its P-value exceeds 0.05. In contrast, the store's location in the US is considered statistically significant, with a P-value less than 0.05.
+
+
+
+Fitting a smaller model that only uses the predictors for which there is evidence of association with the outcome.
+
+```{r,echo=FALSE}
+
+# fitting the second model with price and US variable
+Fit2 <- lm(Sales ~ Price + US, data = Carseats)
+summary(Fit2)
+
+# Plotting the fitted data
+layout(matrix(c(1,2,3,4),2,2))
+plot(Fit2,pch=16,col=3,cex=0.8)
+
+```
+  
+  In the second model, we constructed the model using price and the US as predictors, showcasing their linear association with sales. While the coefficient for price remains consistent with the first model, the coefficient for the US variable is nearly identical to that in the initial model. The R standard error for model-1 is marginally higher than that of the second model. Notably, the adjusted R-squared value for model-2 surpasses that of the first model.
+Now, analyzing how well those model fitted.
+
+```{r,echo=FALSE}
+# attach(Carseats)
+# print(class(Carseats$Sales))
+# print(class(Carseats$Price))
+# print(class(Carseats$Urban))
+# print(class(Carseats$US))
+myydata = Carseats[order(Carseats$Sales),]
+model_1 <- lm(Sales~Price+Urban+US,data=myydata)
+model_2 <- lm(Sales~Price+US,data=myydata)
+
+# For model_1
+
+plot(myydata$Sales,
+     col=1, 
+     cex=0.5,
+     pch=16,
+     ylim = c(-5,20),
+     ylab="sales",
+     main="Sales~Price+Urban+US")
+points(model_1$fitted.values,
+       col=3,
+       cex=0.5,
+       pch=16)
+legend("topright",
+       bty="n",
+       c("Actual Sales",
+         "Estimates Sales"),
+        col=c(1,3),
+       pch=16)
+
+
+
+# for model_2
+
+plot(myydata$Sales, 
+     col=1,
+     cex=0.5, 
+     pch=16, 
+     ylim = c(-5,20),
+     ylab="sales",
+     main="Sales~Price+US")
+points(model_2$fitted.values,
+       col=3, 
+       cex=0.5, 
+       pch=16)
+legend("topright", 
+       bty="n", 
+       c("Actual Sales", "Estimates Sales"),
+       col=c(1,3),
+       pch=16)
+
+cat ("Estimated std error of the error of model_1")
+error_1=sqrt(sum((model_1$residuals)^2)/model_1$df.residual)
+error_1
+cat ("Estimated std err of the error of model_2")
+error_2=sqrt(sum((model_2$residuals)^2)/model_2$df.residual)
+error_2
+cat("Mean sales: ")
+mean(myydata$Sales)
+layout(matrix(1))
+hist(myydata$Sales)
+
+cat("Anova of model_1 and model_2")
+kable(anova(model_1, model_2), caption = "Anova of model_1 and model_2")
+
+```
+    
+ The adjusted R-squared values for model_1 and model_2 are 0.2335 and 0.2354, respectively, indicating that approximately 23% of the variance in sales can be accounted for by these models. In the plots, the green points depict estimated sales, while the black points represent actual sales. Notably, the green points fall within a specific range, approximately between 2.5 and 10. However, the actual sales exhibit a different pattern, spanning from 0 to 15. The estimated sales fail to capture points with very high and very low sales.
+
+Furthermore, the standard error for errors is calculated as 2.47 for both models. This standard error is relatively high, given the mean value of 7.49 for the model. An Anova analysis indicates a high p-value of 0.9, suggesting that the models are statistically indistinguishable.
+    
+ 
+Here, using the other model.
+
+```{r,echo=FALSE}
+
+cat(" Confidence intervals for coefficient ")
+
+kable(confint(model_2, level = 0.95), caption = "95% confidence intervals for the coefficient(s)")
+
+
+```
+
+
+```{r,echo=FALSE}
+layout(matrix(1:4,nrow=2))
+plot(model_2,pch=16,col=3,cex=0.8)
+layout(matrix(1))
+plot(model_2,pch=16,col=3,cex=0.8,which=3)
+
+# By looking at the figure it looks like 69, 51 and 377 are the outliers
+# We are looking in a more formal way
+
+stdres=rstudent(model_2)
+hist(stdres)
+min(stdres)
+print(which(abs(stdres)>qt(0.995,397)))
+
+# leverage
+h_ii=lm.influence(model_2)$hat
+layout(matrix(1))
+sum(h_ii)
+barplot(h_ii,border = NA,col="gray40",ylim=c(0,0.05),xlab="Index",ylab="Leverage Statisitcs")
+abline(h=2*mean(h_ii),lwd=2,col=2)
+legend("topright","Threshold",bty="n",col=2, lwd=2, lty=1)
+which(h_ii>2*mean(h_ii))
+
+```
+
+   
+The graph depicting standardized residuals against leverage reveals the existence of outliers, specifically at values exceeding 2 or falling below -2. Outlying observations include those with indices 51, 69, 26, 377, 6, 393, 398, and 400. Additionally, the examination of studentized residuals also highlights instances of high leverage, as certain points surpass the threshold of 
+(p+1)/n, i.e., 0.01.
+
+
+This issue pertains to the Boston dataset previously explored in this chapter's lab. Our objective is to forecast the per capita crime rate by leveraging the remaining variables in this dataset. Specifically, the per capita crime rate serves as the response variable, while the other variables function as predictors.
+
+
+ Creating individual simple linear regression models for each predictor to forecast the response variable.
+
+```{r,echo=FALSE}
+
+library(MASS)
+attach(Boston)
+# head(Boston)
+
+layout(matrix(1:4,nrow=2))
+for(i in 1:(dim(Boston)[2]-1)){
+  message("Variable: ", names(Boston)[i])
+  model=lm(Boston$crim~Boston[,i])
+  print(summary(model))
+  for(j in 1:2){
+    plot(model, which=j,main=paste("Variable: ", names(Boston)[i]),
+         pch=16, col=j+2,cex=0.6,lwd=2)
+  }
+}
+
+library(lawstat)
+for(i in 1:(dim(Boston)[2]-1)){
+  model=lm(Boston$crim~Boston[,i])
+  message("BF test p-value for the variable: ",names(Boston)[i])
+  print(levene.test(model$resid,Boston[,i],trim.alpha=0.5)$p.value)
+}
+
+
+```
+Following the model fittings, it was observed that all predictors, with the exception of the 'chas' variable, exhibit a linear association with the response variable and are statistically significant.
+
+Despite their significance, the R-squared values for these models are notably low, indicating that these predictors explain only a small portion of the variance in the response. A formal Brown-Forsythe test revealed evidence of homoscedasticity (indicating consistent variance at every X) for nine out of the thirteen variables: indus, nox, rm, dis, rad, tax, ptratio, lstat, and medv. To address the violation of our homoscedasticity assumption, the summary for all models was computed, as indicated by the residual vs. fitted and QQ plots.
+
+Fitting a multiple regression model to predict the response using
+all of the predictors. 
+
+```{r,echo=FALSE,warning=FALSE}
+
+mymodel=lm(crim~.,data=Boston)
+summary(mymodel)
+layout(matrix(1:4,nrow=2))
+plot(mymodel, pch=16, col=j+2,cex=0.6,lwd=2)
+
+```
+
+The fully fitted model, exhibiting an R-squared value of 0.7338, elucidates that 73.38% of the response is accounted for by the linear model. Upon inspecting the P-values, we can confidently reject the null hypothesis for the Zn, dis, rad, black, and medv variables at any significance level (0.001, 0.01, or 0.05).
+
+
+```{r,echo=FALSE,warning=FALSE}
+
+# Let us create a data frame 13x2
+multiple=rep(0, 13)
+univariate=rep(0, 13)
+
+
+coeffs=as.data.frame(cbind(multiple,univariate))
+for(i in 1:13){
+  coeffs$multiple[i]=mymodel$coeff[i+1]
+}
+
+for(i in 1:13){
+  model=lm(Boston$cri~Boston[,i])
+  coeffs$univariate[i]=model$coeff[2]
+}
+layout(matrix(1))
+plot(multiple~univariate,
+     data=coeffs,
+     pch=16,
+     col=2,
+     cex=0.8,
+     ylim=c(-20,30),
+     xlab="Univariate Coefficients",
+     ylab="Multiple Regression Coefficinets")
+grid(col = "lightgray",
+     lty = "dotted")
+text(coeffs$univariate, 
+     coeffs$multiple,
+     labels = names(Boston)[1:13],
+      pos = 3,
+     offset = 0.7, 
+     col = 1)
+abline(0,1,col=3, 
+       lty=2, 
+       lwd=2)
+cmodel=(lm(multiple~univariate,data=coeffs))
+abline(cmodel$coeff[1],cmodel$coeff[2],col=4,lty=2, lwd=2)
+
+```
+
+ In the depicted graph, the x-axis denotes univariate coefficients, while the y-axis illustrates multiple regression coefficients. The red dot symbolizes a predictor, and the blue dotted line represents the regression line of these points. The green dotted line illustrates a scenario where the model yields identical estimations, and these points would align along a line with a slope of 1 passing through the origin. The graphs reveal significant deviations, with some points surpassing and others falling short of the estimated values from the full regression model.
+
+
+```{r,echo=FALSE,warning=FALSE}
+
+attach(Boston)
+fit.zn <- lm(crim ~ poly(zn, 3))
+summary(fit.zn)
+fit.indus <- lm(crim ~ poly(indus, 3))
+summary(fit.indus)
+fit.nox <- lm(crim ~ poly(nox, 3))
+summary(fit.nox)
+fit.rm <- lm(crim ~ poly(rm, 3))
+summary(fit.rm)
+fit.age <- lm(crim ~ poly(age, 3))
+summary(fit.age)
+fit.dis <- lm(crim ~ poly(dis, 3))
+summary(fit.dis)
+fit.rad <- lm(crim ~ poly(rad, 3))
+summary(fit.rad)
+fit.tax <- lm(crim ~ poly(tax, 3))
+summary(fit.tax)
+fit.ptratio <- lm(crim ~ poly(ptratio, 3))
+summary(fit.ptratio)
+fit.black <- lm(crim ~ poly(black, 3))
+summary(fit.black)
+fit.lstat <- lm(crim ~ poly(lstat, 3))
+summary(fit.lstat)
+fit.medv <- lm(crim ~ poly(medv, 3))
+summary(fit.medv)
+
+```
+
+
+ Regarding the predictor variables zn, rm, rad, tax, and lstat, the p-values indicate that the cubic coefficient is not statistically significant. Conversely, for the predictor variables indus, nox, age, dis, ptratio, and medv, the p-values suggest a significant cubic fit. In the case of the "black" variable as a predictor, the p-values suggest that neither the quadratic nor cubic coefficients are statistically significant, indicating the absence of a discernible non-linear effect in this particular scenario.
+
+```{r}
+# Referance
+# https://stackoverflow.com/questions/15180008/how-to-calculate-the-95-confidence-interval-for-the-slope-in-a-linear-regressio
+# https://online.stat.psu.edu/stat462/node/170/
+# malinc.se/math/latex/basiccodeen.php
+# https://www.overleaf.com/learn/latex/mathematical_expressions
+# https://online.stat.psu.edu/stat462/node/171/
+# https://stackoverflow.com/questions/11308367/error-in-my-code-object-of-type-closure-is-not-# subsettable
+
+
+```
+
+
+
